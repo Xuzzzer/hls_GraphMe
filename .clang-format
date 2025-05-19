@@ -1,0 +1,16 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+AllowShortFunctionsOnASingleLine: Empty
+BreakBeforeBraces: Allman
+AlwaysBreakTemplateDeclarations: Yes
+ColumnLimit: 100
+AlignAfterOpenBracket: Align
+SortIncludes: false
+SpaceBeforeParens: ControlStatements
+IndentCaseLabels: true
+ReflowComments: false
+AllowShortIfStatementsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
+IndentPPDirectives: None
+DisableFormat: false
