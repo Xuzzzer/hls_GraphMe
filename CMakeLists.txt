@@ -1,10 +1,32 @@
 cmake_minimum_required(VERSION 3.10)
-project(graphme)
+project(GraphMe)
 
-set(CMAKE_CXX_STANDARD 17)
+# Set Xilinx HLS include path
+set(XILINX_HLS_PATH "/data-hdd/opt/Xilinx/Vitis_HLS/2023.2")
 
-# 包含头文件路径
-include_directories(${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/src)
+# Set include directories
+include_directories(
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/host
+    ${XILINX_HLS_PATH}/include
+)
 
-# 添加可执行文件：用于 CPU 验证
-add_executable(cpu_verify host/cpu_main.cpp src/graph_loader.cpp src/graph.cpp src/common.cpp)
+# 设置源文件
+set(SOURCES
+    host/testbench.cpp
+    host/graph_loader.cpp
+    src/gpm_kernel.cpp
+    src/graph.cpp
+    src/set_intersect.cpp
+)
+
+# 生成可执行文件
+add_executable(graph_matching ${SOURCES})
+
+# 编译选项
+target_compile_features(graph_matching PRIVATE cxx_std_11)
+
+# Add Xilinx specific definitions 
+target_compile_definitions(graph_matching PRIVATE
+    SIMULATION_MODE
+)

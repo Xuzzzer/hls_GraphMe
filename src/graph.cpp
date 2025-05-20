@@ -1,50 +1,149 @@
+// graph.cpp
 #include "graph.h"
-#include <algorithm>
-#include <unordered_set>
 
-Graph::Graph(int v_cnt) : v_cnt(v_cnt), e_cnt(0), vertex_(nullptr), edge_(nullptr) {
-    if (v_cnt < 0) {
-        throw std::invalid_argument("Vertex count must be non-negative");
-    }
-}
+#include "set_intersect.h"
 
-long long Graph::count_triangles() {
-    long long triangle_count = 0;
+// #include <hls_stream.h>
 
-    for (int u = 0; u < v_cnt; ++u) {
-        int begin_u = vertex_[u];
-        int end_u = vertex_[u + 1];
+// 3CF
+void triangle_match(vertex_t *vertex_, vertex_t *edge_, int v_cnt, int e_cnt, MatchResult *results)
+{
 
-        // 遍历u的所有邻居v，且保证v > u
-        for (int i = begin_u; i < end_u; ++i) {
-            int v = edge_[i];
-            if (v <= u) continue;  // 只处理v > u的情况
+    vertex_t neighbors_v1[MAX_LOCAL_BUFFER];
+    vertex_t neighbors_v2[MAX_LOCAL_BUFFER];
+    vertex_t intersection_result[MAX_LOCAL_BUFFER];
 
-            int begin_v = vertex_[v];
-            int end_v = vertex_[v + 1];
+#pragma HLS RESOURCE variable = neighbors_v1 core = RAM_1P_BRAM
+#pragma HLS RESOURCE variable = neighbors_v2 core = RAM_1P_BRAM
+#pragma HLS RESOURCE variable = intersection_result core = RAM_1P_BRAM
 
-            // 查找u和v的共同邻居w，且w > v
-            int ptr1 = begin_u;
-            int ptr2 = begin_v;
+    if (results != NULL) { results->count = 0; }
+    else
+        return;
 
-            while (ptr1 < end_u && ptr2 < end_v) {
-                int w1 = edge_[ptr1];
-                int w2 = edge_[ptr2];
+    if (v_cnt <= 0 || v_cnt > MAX_VERTICES) { return; }
 
-                if (w1 == w2) {
-                    if (w1 > v) {  // w > v > u
-                        ++triangle_count;
-                    }
-                    ++ptr1;
-                    ++ptr2;
-                } else if (w1 < w2) {
-                    ++ptr1;
-                } else {
-                    ++ptr2;
+    for (vertex_t v1 = 0; v1 < v_cnt; v1++)
+    {
+        int num_neighbors_v1;
+        get_neighbors(vertex_, edge_, v1, neighbors_v1, num_neighbors_v1);
+
+        for (int i = 0; i < num_neighbors_v1; i++)
+        {
+            vertex_t v2 = neighbors_v1[i];
+            // v3>v2>v1
+            if (v2 <= v1) continue;
+            int num_neighbors_v2;
+            get_neighbors(vertex_, edge_, v2, neighbors_v2, num_neighbors_v2);
+
+            int intersection_size;
+            set_intersection(neighbors_v1, num_neighbors_v1, neighbors_v2, num_neighbors_v2,
+                             intersection_result, intersection_size);
+
+            for (int j = 0; j < intersection_size; j++)
+            {
+                vertex_t v3 = intersection_result[j];
+                if (v3 <= v2) continue;
+                if (results->count < MAX_MATCHES)
+                {
+                    results->matches[results->count][0] = v1;
+                    results->matches[results->count][1] = v2;
+                    results->matches[results->count][2] = v3;
+                    results->count++;
                 }
             }
         }
     }
+}
 
-    return triangle_count;
+/*
+1-2
+| |
+4-3
+*/
+void rectangle_match(vertex_t *vertex_, vertex_t *edge_, int v_cnt, int e_cnt, MatchResult *results)
+{
+
+    vertex_t neighbors_v1[MAX_LOCAL_BUFFER];
+    vertex_t neighbors_v2[MAX_LOCAL_BUFFER];
+    vertex_t neighbors_v3[MAX_LOCAL_BUFFER];
+    vertex_t intersection_result[MAX_LOCAL_BUFFER];
+
+#pragma HLS RESOURCE variable = neighbors_v1 core = RAM_1P_BRAM
+#pragma HLS RESOURCE variable = neighbors_v2 core = RAM_1P_BRAM
+#pragma HLS RESOURCE variable = neighbors_v3 core = RAM_1P_BRAM
+#pragma HLS RESOURCE variable = intersection_result core = RAM_1P_BRAM
+
+    if (results != NULL) { results->count = 0; }
+    else { return; }
+
+    if (v_cnt <= 0 || v_cnt > MAX_VERTICES) { return; }
+    //限制条件就是 v1>v2,v2>v4,v1>v2; v1不连v3; v2不连v4
+    for (vertex_t v1 = 0; v1 < v_cnt; v1++)
+    {
+        int deg1;
+        get_neighbors(vertex_, edge_, v1, neighbors_v1, deg1);
+
+        for (int i = 0; i < deg1; ++i)
+        {
+            vertex_t v2 = neighbors_v1[i];
+            if (v1 <= v2) continue;
+
+            int deg2;
+            get_neighbors(vertex_, edge_, v2, neighbors_v2, deg2);
+
+            for (int j = 0; j < deg2; j++)
+            {
+                vertex_t v3 = neighbors_v2[j];
+                if (v3 <= v1) continue;
+                if (bool_in_neighbors(v3, neighbors_v1, deg1)) continue; //v3不属于v1的邻居
+
+                int deg3;
+                get_neighbors(vertex_, edge_, v3, neighbors_v3, deg3);
+
+                int intersection_size;
+                set_intersection(neighbors_v1, deg1, neighbors_v3, deg3, intersection_result,
+                                 intersection_size);
+
+                for (int k = 0; k < intersection_size; k++)
+                {
+                    //其实如果能先判断v2<v4然后再进行交集，会简化交集的次数
+                    vertex_t v4 = intersection_result[k];
+                    if (v4 <= v2) continue;
+                    if (bool_in_neighbors(v4, neighbors_v2, deg2)) continue;
+                    if (results->count < MAX_MATCHES) ++results->count;
+                }
+            }
+        }
+    }
+}
+
+void get_neighbors(vertex_t *vertex_, vertex_t *edge_, vertex_t id, vertex_t *neighbors,
+                   int &num_neighbors)
+{
+#pragma HLS INLINE
+
+    int start = vertex_[id];
+    int end = vertex_[id + 1];
+    num_neighbors = end - start;
+
+    // 安全检查：确保不超过最大缓冲区大小 ---1024
+    if (num_neighbors > MAX_LOCAL_BUFFER) { num_neighbors = MAX_LOCAL_BUFFER; }
+
+    for (int i = 0; i < num_neighbors; i++)
+    {
+#pragma HLS PIPELINE II = 1
+        neighbors[i] = edge_[start + i];
+    }
+}
+
+static bool bool_in_neighbors(vertex_t id, const vertex_t *nbr, int deg)
+{
+#pragma HLS INLINE
+    for (int i = 0; i < deg; ++i)
+    {
+#pragma HLS PIPELINE II = 1
+        if (nbr[i] == id) return true;
+    }
+    return false;
 }

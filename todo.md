@@ -1,7 +1,24 @@
-| 阶段 | 目标                                 | 关键组件                               |
-| -- | ---------------------------------- | ---------------------------------- |
-| 1  | 搭建基础的 3CF（3-condition filter）流水线原型 | `main.cpp` + `match_3cf()`         |
-| 2  | 实现并测试 Set Intersection Primitive   | `set_intersect()`                  |
-| 3  | 设计图数据的输入格式与内存布局                    | 邻接表 `adj[]` 与顶点索引表 `offset[]`      |
-| 4  | 集成所有模块，实现端到端的 HLS 模拟运行             | `match_3cf()` 调用 `set_intersect()` |
-| 5  | 使用 Vivado HLS 编译并部署至 FPGA 平台       | 完整 `vivado_hls` 工程与综合、实现流程         |
+
+├── CMakeLists.txt//主要负责c编译，验证功能
+├── dataset
+│   ├── rectangle.txt
+│   ├── triangle.txt
+│   └── wiki-vote_input.txt
+├── host//读入边列表，去重等一系列操作之后，把CSR给FPGA
+│   ├── graph_loader.cpp
+│   ├── graph_loader.h
+│   └── testbench.cpp
+├── include
+│   ├── graph.h
+│   ├── set_intersect.h
+│   └── types.h
+├── run.tcl//简单跑的脚本
+├── src//hls实现的部分
+│   ├── gpm_kernel.cpp
+│   ├── graph.cpp
+│   ├── schedule.cpp
+│   └── set_intersect.cpp
+├── todo.md
+├── vitis_hls.log
+
+5.20进度：矩阵的数数的逻辑是存在问题的，但是先尝试跑了后续的流程，目前过了前两个仿真，协同仿真还需要通过最终的depth端口的定义，待改善

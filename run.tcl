@@ -1,6 +1,6 @@
 # 设置项目名称和顶层函数
-set project_name "GraphHLSMatcher"
-set top_function "match_3cf_kernel"
+set project_name "GraphMe"
+set top_function "gpm_kernel"
 
 # 设置项目目录
 set project_dir "./vivado_hls_project"
@@ -9,18 +9,16 @@ open_project -reset $project_dir/$project_name
 # 设置时钟周期（单位：ns，对应100MHz）
 set clock_period 10
 
-# 创建HLS项目
-open_project -reset $project_name
-
 # 添加设计文件
-add_files "hls/match_3cf.cpp hls/set_intersect.cpp" -cflags "-std=c++0x -I./include"
+add_files "src/gpm_kernel.cpp src/graph.cpp src/set_intersect.cpp" -cflags "-std=c++14 -I./include"
 
 # 添加 Xilinx OpenCL 头文件路径
 set xilinx_opencl_include "/data-hdd/opt/Xilinx/Vitis_HLS/2023.2/include"
 
 # 添加测试台文件
-# add_files -tb "host/main.cpp" -cflags "-std=c++0x -I./include -I$xilinx_opencl_include -DSIMULATION_MODE"
-add_files -tb "hls/test_match_3cf.cpp" -cflags "-std=c++0x -I. -I./include"
+add_files -tb "host/testbench.cpp host/graph_loader.cpp" -cflags "-std=c++14 -I./include -I$xilinx_opencl_include"
+
+
 
 # 设置顶层函数
 set_top $top_function
@@ -28,18 +26,22 @@ set_top $top_function
 # 创建解决方案
 open_solution -reset "solution1"
 
-# 设置目标设备 (根据您的FPGA型号调整)
+# 设置目标设备
 set_part {xc7z020clg484-1}
 
 # 设置时钟周期
 create_clock -period $clock_period
 
-# 设置指令
+# 设置接口配置
 config_interface -m_axi_addr64=false
 config_rtl -reset_level low
 
+# 配置C仿真选项
+config_compile -pipeline_loops 0
+
+
 # C仿真
-csim_design -clean
+csim_design  -clean  
 
 # C综合
 csynth_design
