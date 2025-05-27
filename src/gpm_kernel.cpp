@@ -8,11 +8,15 @@ extern "C"
                     int pattern_v_cnt, int pattern_e_cnt, PatternType pattern_type,
                     MatchResult *results)
     {
-#pragma HLS INTERFACE m_axi port = vertex_ offset = slave bundle = gmem0 depth =
+#pragma HLS INTERFACE m_axi port = vertex_ offset = slave bundle = gmem0
 #pragma HLS INTERFACE m_axi port = edge_ offset = slave bundle = gmem1
 #pragma HLS INTERFACE m_axi port = pattern_matrix offset = slave bundle = gmem2
 #pragma HLS INTERFACE m_axi port = results offset = slave bundle = gmem3
 
+#pragma HLS INTERFACE s_axilite port = vertex_ bundle = control
+#pragma HLS INTERFACE s_axilite port = edge_ bundle = control
+#pragma HLS INTERFACE s_axilite port = pattern_matrix bundle = control
+#pragma HLS INTERFACE s_axilite port = results bundle = control
 #pragma HLS INTERFACE s_axilite port = v_cnt bundle = control
 #pragma HLS INTERFACE s_axilite port = e_cnt bundle = control
 #pragma HLS INTERFACE s_axilite port = pattern_v_cnt bundle = control

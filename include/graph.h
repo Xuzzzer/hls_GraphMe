@@ -58,6 +58,5 @@ void rectangle_match(vertex_t *vertex_, vertex_t *edge_, int v_cnt, int e_cnt,
                      MatchResult *results);
 void get_neighbors(vertex_t *vertex_, vertex_t *edge_, vertex_t id, vertex_t *neighbors,
                    int &num_neighbors);
-static bool bool_in_neighbors(vertex_t id, const vertex_t *nbr, int deg);
 
 #endif

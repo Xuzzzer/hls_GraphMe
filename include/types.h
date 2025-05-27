@@ -26,7 +26,7 @@ typedef uint32_t offset_t;
 struct MatchResult
 {
     int count;
-    vertex_t matches[MAX_MATCHES][3];
+    //vertex_t matches[MAX_MATCHES][4];
 };
 
 struct CSRGraph

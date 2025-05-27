@@ -1,23 +1,23 @@
-#include "set_intersect.h"
+#include "../include/set_intersect.h"
 
-void set_intersection(vertex_t *set_a, int size_a, vertex_t *set_b, int size_b, vertex_t *result,
+void set_intersection(vertex_t *l1, int size1, vertex_t *l2, int size2, vertex_t *result,
                       int &result_size)
 {
-
-    result_size = 0;
-    if (size_a <= 0 || size_b <= 0) { return; }
-    int i = 0, j = 0;
-
-#pragma HLS PIPELINE II = 1
-    while (i < size_a && j < size_b)
+#pragma HLS INLINE
+    int i = 0, j = 0, k = 0;
+COMPARE_LOOP:
+    while (i < size1 && j < size2)
     {
-        if (set_a[i] == set_b[j])
+#pragma HLS PIPELINE II = 1
+        if (l1[i] < l2[j]) { i++; }
+        else if (l2[j] < l1[i]) { j++; }
+        else
         {
-            result[result_size++] = set_a[i];
+            result[k] = l1[i];
             i++;
             j++;
+            k++;
         }
-        else if (set_a[i] < set_b[j]) { i++; }
-        else { j++; }
     }
+    result_size = k;
 }

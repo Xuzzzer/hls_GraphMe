@@ -9,8 +9,8 @@ extern "C"
 #endif
 
     // 集合交集函数声明
-    void set_intersection(vertex_t *set_a, int size_a, vertex_t *set_b, int size_b,
-                          vertex_t *result, int &result_size);
+    void set_intersection(vertex_t *l1, int size1, vertex_t *l2, int size2, vertex_t *result,
+                          int &result_size);
 
 #ifdef __cplusplus
 }

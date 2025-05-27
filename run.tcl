@@ -13,7 +13,7 @@ set clock_period 10
 add_files "src/gpm_kernel.cpp src/graph.cpp src/set_intersect.cpp" -cflags "-std=c++14 -I./include"
 
 # 添加 Xilinx OpenCL 头文件路径
-set xilinx_opencl_include "/data-hdd/opt/Xilinx/Vitis_HLS/2023.2/include"
+set xilinx_opencl_include "/data-hdd/opt/Xilinx/Vitis_HLS/2024.1/include"
 
 # 添加测试台文件
 add_files -tb "host/testbench.cpp host/graph_loader.cpp" -cflags "-std=c++14 -I./include -I$xilinx_opencl_include"
@@ -41,7 +41,7 @@ config_compile -pipeline_loops 0
 
 
 # C仿真
-csim_design  -clean  
+#csim_design  -clean  
 
 # C综合
 csynth_design
