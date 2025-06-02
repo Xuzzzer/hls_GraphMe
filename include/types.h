@@ -23,18 +23,21 @@ typedef uint32_t offset_t;
 #define MAX_MATCHES 60000000
 #define MAX_PATTERN_VERTICES 16
 
+static const int W = 32; // BCSR word
+static const int B = 8;  // bitmap bits
+
 struct MatchResult
 {
     int count;
     //vertex_t matches[MAX_MATCHES][4];
 };
 
-struct CSRGraph
+struct BCSRGraph
 {
     vertex_t v_cnt;
     edge_t e_cnt;
-    offset_t vertex_[MAX_VERTICES + 1]; // CSR offset array
-    vertex_t edge_[MAX_EDGES];          // CSR edge array
+    offset_t vertex_[MAX_VERTICES + 1];
+    vertex_t edge_[MAX_EDGES];
 };
 
 // Pattern的邻接矩阵表示

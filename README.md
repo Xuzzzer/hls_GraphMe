@@ -37,6 +37,7 @@
 mkdir -p build && cd build
 cmake ..
 make
+./graph_matching
 
 ```
 
