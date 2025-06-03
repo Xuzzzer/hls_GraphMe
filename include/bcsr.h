@@ -9,8 +9,8 @@ const int LOG2_PRCESSING_SEGMENT_SIZE = 3;
 const int BCSR_BITMAP_WIDTH = 8;
 const int BCSR_INDEX_WIDTH = 24; // Assuming 32-bit total BCSR element (32 - 8 = 24)
 
-typedef ap_uint<BCSR_BITMAP_WIDTH> bcsr_index_t;
-typedef ap_uint<BCSR_BITMAP_WIDTH> bcsr_bitmap_t;
+using bcsr_index_t = ap_uint<BCSR_INDEX_WIDTH>;
+using bcsr_bitmap_t = ap_uint<BCSR_BITMAP_WIDTH>;
 
 struct BCSR_t
 {
@@ -27,13 +27,24 @@ struct BCSR_t
     }
     bool isPadding() const
     {
-        return index == BCSR_PADDING_INDEX;
+        return bitmap == 0;
     }
     bool isEmptyForCompaction() const
     {
         return bitmap == 0;
     }
-}
+    int popcount() const
+    {
+#pragma HLS INLINE
+        int cnt = 0;
+        for (int i = 0; i < BCSR_BITMAP_WIDTH; ++i)
+        {
+#pragma HLS UNROLL
+            if (bitmap[i]) ++cnt;
+        }
+        return cnt;
+    }
+};
 
 struct BcsrEle_t
 {
@@ -42,28 +53,11 @@ struct BcsrEle_t
     bool matched;
     bool valid;
     BcsrEle_t() : fromA(false), matched(false), valid(true) {}
-}
+};
 
-void bcsr_set_op(
-    const BCSR_t segA_in[PROCESSING_SEGMENT_SIZE],
-    int lenA,
-    const BCSR_t segB_in{PROCESSING_SEGMENT_SIZE},
-    int lenB,
-    bool is_intersection_op,
-    BCSR_t final_bcsr_out[PROCESSING_SEGMENT_SIZE],
-    int& num_valid_elements_out;
-    int& total_set_bits_out;
-)
+void bcsr_set_op(const BCSR_t segA_in[PROCESSING_SEGMENT_SIZE], int lenA,
+                 const BCSR_t segB_in{PROCESSING_SEGMENT_SIZE}, int lenB, bool is_intersection_op,
+                 BCSR_t final_bcsr_out[PROCESSING_SEGMENT_SIZE], int &num_valid_elements_out;
+                 int &total_set_bits_out;);
 
-static int countSetBits(bcsr_bitmap_t bitmap)
-{
-#pragma HLS INLINE
-    int count = 0;
-    for (int i = 0; i < BCSR_BITMAP_WIDTH; i++)
-    {
-#pragma HLS UNROLL
-        if (bitmap[i]) count++;
-    }
-    return count;
-}
 #endif
