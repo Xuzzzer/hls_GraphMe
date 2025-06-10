@@ -2,7 +2,8 @@
 #Copyright (C) 2023, Advanced Micro Devices, Inc. All rights reserved.
 #SPDX-License-Identifier: X11
 #*/
-
+#include "../include/bcsr.h"
+#include <chrono>
 //#include "cmdlineparser.h"
 #include <iostream>
 #include <cstring>
@@ -32,66 +33,88 @@ int main(int argc, char **argv)
     auto device = xrt::device(device_index);
     std::cout << "Load the xclbin " << binaryFile << std::endl;
     auto uuid = device.load_xclbin("./vadd.xclbin");
+    // Create kernel
+    auto kernel =
+        xrt::kernel(device, uuid, "set_int_kernel", xrt::kernel::cu_access_mode::exclusive);
+    // Test data setup
+    const int A_elements = 12;
+    const int B_elements = 13;
 
-    size_t vector_size_bytes = sizeof(int) * DATA_SIZE;
-    std::cout << "The size of the vector in bytes: " << vector_size_bytes << std::endl;
-    //auto krnl = xrt::kernel(device, uuid, "vadd");
-    auto krnl = xrt::kernel(device, uuid, "vadd", xrt::kernel::cu_access_mode::exclusive);
+    // Initialize input data
+    BCSR_t setA[A_elements] = {{1, 0b10000001},  {3, 0b00100000},  {5, 0b00111000},
+                               {8, 0b11111111},  {10, 0b00000001}, {13, 0b00010000},
+                               {15, 0b00001001}, {18, 0b01001010}, {22, 0b11000000},
+                               {25, 0b00100100}, {30, 0b11110000}, {31, 0b00001111}};
 
-    std::cout << "Allocate Buffer in Global Memory\n";
-    auto boIn1 =
-        xrt::bo(device, vector_size_bytes, krnl.group_id(0)); //Match kernel arguments to RTL kernel
+    BCSR_t setB[B_elements] = {
+        {2, 0b11000001},  {3, 0b11111111},  {5, 0b00011000},  {8, 0b00001111},  {12, 0b11100000},
+        {15, 0b11111111}, {16, 0b00000011}, {17, 0b00111001}, {18, 0b01001010}, {21, 0b10010010},
+        {22, 0b11111111}, {30, 0b00001111}, {32, 0b00000100}};
 
-    auto boIn2 = xrt::bo(device, vector_size_bytes, krnl.group_id(1));
-    auto boOut = xrt::bo(device, vector_size_bytes, krnl.group_id(2));
+    // Allocate device buffers
+    auto boSetA = xrt::bo(device, A_elements * sizeof(BCSR_t), kernel.group_id(0));
+    auto boSetB = xrt::bo(device, B_elements * sizeof(BCSR_t), kernel.group_id(1));
+    auto boResult = xrt::bo(device, PROCESSING_SEGMENT_SIZE * sizeof(BCSR_t), kernel.group_id(2));
+    auto boPopcount = xrt::bo(device, sizeof(int), kernel.group_id(3));
 
-    // Map the contents of the buffer object into host memory
-    auto bo0_map = boIn1.map<int *>();
-    auto bo1_map = boIn2.map<int *>();
-    auto bo2_map = boOut.map<int *>();
-    std::fill(bo0_map, bo0_map + DATA_SIZE, 0);
-    std::fill(bo1_map, bo1_map + DATA_SIZE, 0);
-    std::fill(bo2_map, bo2_map + DATA_SIZE, 0);
+    // Copy input data to device buffers
+    boSetA.write(setA);
+    boSetB.write(setB);
 
-    // Create the test data
-    int bufReference[DATA_SIZE];
-    for (int i = 0; i < DATA_SIZE; ++i)
+    std::cout << "Synchronizing input buffers..." << std::endl;
+    auto sync_start = std::chrono::high_resolution_clock::now();
+    boSetA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+    boSetB.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+    auto sync_end = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Executing kernel..." << std::endl;
+    auto run_start = std::chrono::high_resolution_clock::now();
+    auto run = kernel(boSetA, boSetB, boResult, boPopcount, A_elements, B_elements);
+    run.wait();
+    auto run_end = std::chrono::high_resolution_clock::now();
+
+    // Get results
+    std::cout << "Reading results..." << std::endl;
+    BCSR_t hardware_result[PROCESSING_SEGMENT_SIZE];
+    int final_popcount;
+
+    boResult.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+    boPopcount.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+    boResult.read(hardware_result);
+    boPopcount.read(&final_popcount);
+
+    // Print timing information
+    std::chrono::duration<double> sync_time = sync_end - sync_start;
+    std::chrono::duration<double> kernel_time = run_end - run_start;
+
+    std::cout << "\nTiming Results:" << std::endl;
+    std::cout << "Input sync time: " << sync_time.count() << " seconds" << std::endl;
+    std::cout << "Kernel execution time: " << kernel_time.count() << " seconds" << std::endl;
+
+    // Verify results
+    const int expected_total_popcount = 14;
+    bool pass = true;
+    int non_padding_count = 0;
+
+    std::cout << "\nIntersection Results:" << std::endl;
+    for (int i = 0; i < PROCESSING_SEGMENT_SIZE; ++i)
     {
-        bo0_map[i] = i;
-        bo1_map[i] = i;
-        bufReference[i] = bo0_map[i] + bo1_map[i]; //Generate check data for validation
+        if (!hardware_result[i].isPadding())
+        {
+            non_padding_count++;
+            std::cout << "  index: " << std::setw(2) << hardware_result[i].index
+                      << ", bitmap: " << std::bitset<8>(hardware_result[i].bitmap) << std::endl;
+        }
     }
 
-    // Synchronize buffer content with device side
-    std::cout << "synchronize input buffer data to device global memory\n";
-    auto sync_start = std::chrono::high_resolution_clock::now(); // 同步开始时间
-    boIn1.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-    boIn2.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-    auto sync_end = std::chrono::high_resolution_clock::now();           // 同步结束时间
-    std::chrono::duration<double> sync_duration = sync_end - sync_start; // 输入同步时间
-    std::cout << "Time taken to synchronize input data: " << sync_duration.count() << " seconds\n";
+    if (final_popcount != expected_total_popcount)
+    {
+        std::cout << "ERROR: Wrong popcount! Expected " << expected_total_popcount << ", got "
+                  << final_popcount << std::endl;
+        pass = false;
+    }
 
-    std::cout << "Execution of the kernel\n";
-    auto run_start = std::chrono::high_resolution_clock::now(); // 内核执行开始时间
-    auto run = krnl(boIn1, boIn2, boOut, DATA_SIZE);            //DATA_SIZE=size
-    run.wait();
-    auto run_end = std::chrono::high_resolution_clock::now();         // 内核执行结束时间
-    std::chrono::duration<double> run_duration = run_end - run_start; // 内核执行时间
-    std::cout << "Time taken to execute kernel: " << run_duration.count() << " seconds\n";
-    // Get the output;
-    std::cout << "Get the output data from the device" << std::endl;
-    auto output_sync_start = std::chrono::high_resolution_clock::now(); // 输出同步开始时间
-    boOut.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
-    auto output_sync_end = std::chrono::high_resolution_clock::now(); // 输出同步结束时间
-    std::chrono::duration<double> output_sync_duration =
-        output_sync_end - output_sync_start; // 输出同步时间
-    std::cout << "Time taken to synchronize output data: " << output_sync_duration.count()
-              << " seconds\n";
-
-    // Validate results
-    if (std::memcmp(bo2_map, bufReference, vector_size_bytes))
-        throw std::runtime_error("Value read back does not match reference");
-
-    std::cout << "TEST PASSED\n";
-    return 0;
+    std::cout << "\nTEST " << (pass ? "PASSED" : "FAILED") << std::endl;
+    return pass ? 0 : 1;
 }
