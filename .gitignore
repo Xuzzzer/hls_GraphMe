@@ -1,6 +1,8 @@
 # ========= 通用 =========
 # IDE / 编辑器
 .vscode/
+.wsdata/
+
 .idea/
 *.swp
 
@@ -11,13 +13,17 @@
 *.bak
 
 # ========= CMake / Make =========
-build/              
+build/             
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 
 # ========= Xilinx Vivado / Vitis HLS =========
+vitis_ide/
+
+logs/
+set_int_kernel_proj/
 *.runs/
 *.cache/
 *.sim/
