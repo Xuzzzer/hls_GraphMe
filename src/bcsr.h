@@ -4,8 +4,8 @@
 #include <ap_int.h>
 #include <hls_stream.h>
 
-const int PROCESSING_SEGMENT_SIZE = 8; // N, analogous to SMA_SIZE
-const int LOG2_PRCESSING_SEGMENT_SIZE = 3;
+const int PROCESSING_SEGMENT_SIZE = 4; // N, analogous to SMA_SIZE
+const int LOG2_PRCESSING_SEGMENT_SIZE = 2;
 const int BCSR_BITMAP_WIDTH = 8;
 const int BCSR_INDEX_WIDTH = 24; // Assuming 32-bit total BCSR element (32 - 8 = 24)
 #define DEPTH 2
@@ -77,14 +77,28 @@ inline BCSR_t make_padding_bcsr()
 {
     return BCSR_t(0, 0);
 }
+
+inline bool is_all_padding(BCSR_t buffer[PROCESSING_SEGMENT_SIZE])
+{
+#pragma HLS INLINE
+    bool all_pad = true;
+    for (int i = 0; i < PROCESSING_SEGMENT_SIZE; ++i)
+    {
+#pragma HLS UNROLL
+        all_pad &= buffer[i].isPadding();
+    }
+    return all_pad;
+}
+
 void single_cas_stage(const BcsrEle_vec_last in_buf[PROCESSING_SEGMENT_SIZE],
                       BcsrEle_vec_last out_buf[PROCESSING_SEGMENT_SIZE], int level);
 void bitonic_stage(hls::stream<BCSR_vec_last> &segA_in, hls::stream<BCSR_vec_last> &segB_in,
                    bool op_is_intersection, hls::stream<BCSR_vec_last> &stream_out,
                    hls::stream<int> &total_popcount);
 
-    extern "C" {
-void set_int_kernel(BCSR_vec *setA_in, BCSR_vec *setB_in, int A_batches, int B_batches,
-                    BCSR_vec *o3_stream, int *o3_popcount);
-}        
+extern "C"
+{
+    void set_int_kernel(BCSR_vec *setA_in, BCSR_vec *setB_in, int A_batches, int B_batches,
+                        BCSR_vec *o3_stream, int *o3_popcount);
+}
 #endif

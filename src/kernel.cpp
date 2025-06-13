@@ -29,7 +29,7 @@ LOAD_LOOP:
 
 // Corrected task3_store
 void task3_store(hls::stream<BCSR_vec_last> &stream_out, hls::stream<int> &final_popcount,
-                 BCSR_vec *o3_stream, int *o3_popcount) // FIX: Correct pointer type
+                 BCSR_vec *o3_stream, int *o3_popcount)
 {
 #pragma HLS INLINE off
     int i = 0;
@@ -38,14 +38,22 @@ STORE_LOOP:
     while (true)
     {
 #pragma HLS PIPELINE II = 1
-        BCSR_vec_last vec = stream_out.read();
-        o3_stream[i++] = vec.data; // FIX: Correct memory write
-        if (vec.last)
+        printf("Starting store task\n");
+        if (!stream_out.empty()) //&& !final_popcount.empty()
         {
-            *o3_popcount = final_popcount.read();
+            printf("task3_read[%d]\n", i);
+            BCSR_vec_last vec = stream_out.read();
+            o3_stream[i++] = vec.data; // FIX: Correct memory write
+                                       //printf("%d\n", vec.data.lane.index);
+        }
+        else
+        {
+            printf("%d\n", i);
+            //*o3_popcount = final_popcount.read();
             break;
         }
     }
+    printf("Store task completed\n");
 }
 
 extern "C"
@@ -53,7 +61,7 @@ extern "C"
     void set_int_kernel(BCSR_vec *setA_in, BCSR_vec *setB_in, int A_batches, int B_batches,
                         BCSR_vec *o3_stream, int *o3_popcount)
     {
-// Interface pragmas are now correct for the pointer types
+
 #pragma HLS INTERFACE m_axi port = setA_in offset = slave bundle = gmemA
 #pragma HLS INTERFACE m_axi port = setB_in offset = slave bundle = gmemB
 #pragma HLS INTERFACE m_axi port = o3_stream offset = slave bundle = gmemC
@@ -69,16 +77,16 @@ extern "C"
 #pragma HLS DATAFLOW
 
         hls::stream<BCSR_vec_last> streamA("streamA");
-#pragma HLS STREAM type = fifo variable = streamA
+#pragma HLS STREAM type = fifo variable = streamA depth = 32
 
         hls::stream<BCSR_vec_last> streamB("streamB");
-#pragma HLS STREAM type = fifo variable = streamB
+#pragma HLS STREAM type = fifo variable = streamB depth = 32
 
         hls::stream<BCSR_vec_last> stream_out("stream_out");
-#pragma HLS STREAM variable = stream_out
+#pragma HLS STREAM variable = stream_out depth = 64
 
         hls::stream<int> final_popcount("final_popcount");
-#pragma HLS STREAM variable = final_popcount
+#pragma HLS STREAM variable = final_popcount depth = 32
 
         task1_load(setA_in, setB_in, streamA, streamB, A_batches, B_batches);
 
