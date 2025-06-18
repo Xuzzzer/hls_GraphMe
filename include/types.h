@@ -5,7 +5,7 @@
 #include <ap_int.h>
 #include <hls_stream.h>
 
-#ifdef __SYNTHESIS__ // FPGA kernel 综合环境
+#ifdef __SYNTHESIS__
 #include <ap_int.h>
 #include <hls_stream.h>
 typedef ap_uint<32> vertex_t;

@@ -38,22 +38,21 @@ STORE_LOOP:
     while (true)
     {
 #pragma HLS PIPELINE II = 1
+#ifndef __SYNTHESIS__
         printf("Starting store task\n");
+#endif
         if (!stream_out.empty()) //&& !final_popcount.empty()
         {
-            printf("task3_read[%d]\n", i);
             BCSR_vec_last vec = stream_out.read();
-            o3_stream[i++] = vec.data; // FIX: Correct memory write
-                                       //printf("%d\n", vec.data.lane.index);
+            o3_stream[i++] = vec.data;
+            if (!final_popcount.empty()) { *o3_popcount = final_popcount.read(); }
         }
         else
         {
-            printf("%d\n", i);
             //*o3_popcount = final_popcount.read();
             break;
         }
     }
-    printf("Store task completed\n");
 }
 
 extern "C"
@@ -62,10 +61,10 @@ extern "C"
                         BCSR_vec *o3_stream, int *o3_popcount)
     {
 
-#pragma HLS INTERFACE m_axi port = setA_in offset = slave bundle = gmemA
-#pragma HLS INTERFACE m_axi port = setB_in offset = slave bundle = gmemB
-#pragma HLS INTERFACE m_axi port = o3_stream offset = slave bundle = gmemC
-#pragma HLS INTERFACE m_axi port = o3_popcount offset = slave bundle = gmemD
+#pragma HLS INTERFACE m_axi port = setA_in offset = slave bundle = gmem0
+#pragma HLS INTERFACE m_axi port = setB_in offset = slave bundle = gmem1
+#pragma HLS INTERFACE m_axi port = o3_stream offset = slave bundle = gmem0
+#pragma HLS INTERFACE m_axi port = o3_popcount offset = slave bundle = gmem1
 #pragma HLS INTERFACE s_axilite port = setA_in bundle = control
 #pragma HLS INTERFACE s_axilite port = setB_in bundle = control
 #pragma HLS INTERFACE s_axilite port = A_batches bundle = control

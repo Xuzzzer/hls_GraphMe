@@ -17,7 +17,7 @@ build/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
+
 
 # ========= Xilinx Vivado / Vitis HLS =========
 vitis_ide/
@@ -40,6 +40,7 @@ set_int_kernel_proj/
 *.log
 
 
+*.link_summary
 vitis_hls.log
 hls/ 
 _x/
