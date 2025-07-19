@@ -21,9 +21,8 @@
 // 项目头文件
 #include "./src/bcsr.h"
 
-// 一个保守的估计值，用于分配足够大的输出缓冲区
-// 硬件在每个输入批次可能产生多个输出批次，这里假设最多为3
-constexpr int MAX_OUTPUT_FACTOR = 2;
+// 用于分配足够大的输出缓冲区
+constexpr int MAX_OUTPUT_FACTOR = 10;
 
 /**
  * @brief 主函数，用于驱动FPGA执行集合交集运算
@@ -53,18 +52,25 @@ int main(int argc, char **argv)
     // --- 3. 准备输入数据 (Host 端) ---
     std::cout << "\n===== 步骤 2: 准备输入数据 =====" << std::endl;
 
-    // 原始输入数据 (与你的 main.cpp 保持一致)
+   
     BCSR_t setA_elems[] = {BCSR_t(1, 0b10000001),  BCSR_t(3, 0b00100000),  BCSR_t(5, 0b00111000),
                            BCSR_t(8, 0b11111111),  BCSR_t(12, 0b00000001), BCSR_t(13, 0b00010000),
-                           BCSR_t(15, 0b00001001), BCSR_t(18, 0b01001011), BCSR_t(22, 0b11000000),
-                           BCSR_t(25, 0b00100100), BCSR_t(30, 0b11110000), BCSR_t(31, 0b00001111),
-                           BCSR_t(39, 0b00001111)};
+                           BCSR_t(15, 0b00001001), BCSR_t(18, 0b01001011), BCSR_t(23, 0b11000000),
+                           BCSR_t(25, 0b00100100), BCSR_t(29, 0b11110000), BCSR_t(30, 0b00001111),
+                           BCSR_t(39, 0b00001111),BCSR_t(59, 0b11110000),BCSR_t(69, 0b11110000),BCSR_t(79, 0b11110000)};
+   /* BCSR_t setB_elems[] = {BCSR_t(1, 0b10000001),  BCSR_t(3, 0b00100000),  BCSR_t(5, 0b00111000),
+                           BCSR_t(8, 0b11111111),  BCSR_t(12, 0b00000001), BCSR_t(13, 0b00010000),
+                           BCSR_t(15, 0b00001001), BCSR_t(18, 0b01001011), BCSR_t(23, 0b11000000),
+                           BCSR_t(25, 0b00100100), BCSR_t(29, 0b11110000), BCSR_t(30, 0b00001111),
+                           BCSR_t(39, 0b00001111),BCSR_t(59, 0b11110000),BCSR_t(69, 0b11110000),BCSR_t(79, 0b11110000)};*/
 
     BCSR_t setB_elems[] = {BCSR_t(2, 0b11000001),  BCSR_t(3, 0b11111111),  BCSR_t(5, 0b00011000),
                            BCSR_t(8, 0b00001111),  BCSR_t(12, 0b11100001), BCSR_t(15, 0b11111111),
                            BCSR_t(16, 0b00000011), BCSR_t(17, 0b00111001), BCSR_t(18, 0b01001010),
-                           BCSR_t(21, 0b10010010), BCSR_t(22, 0b11111111), BCSR_t(30, 0b11111111),
-                           BCSR_t(32, 0b00000100)};
+                           BCSR_t(21, 0b10010010), BCSR_t(22, 0b11111111), BCSR_t(31, 0b11111111),
+                           BCSR_t(39, 0b00000100)};
+      
+
 
     const int A_elements = sizeof(setA_elems) / sizeof(BCSR_t);
     const int B_elements = sizeof(setB_elems) / sizeof(BCSR_t);
@@ -124,15 +130,13 @@ int main(int argc, char **argv)
     std::cout << "Total boResult size = " << max_output_cycles * sizeof(BCSR_vec) << std::endl;
 
     auto boSetA = xrt::bo(device, setA_vec.size() * sizeof(BCSR_vec), kernel.group_id(0));
-    std::cout << "out1" << std::endl;
     auto boSetB = xrt::bo(device, setB_vec.size() * sizeof(BCSR_vec), kernel.group_id(1));
-    std::cout << "out2" << std::endl;
     auto boResult = xrt::bo(device, max_output_cycles * sizeof(BCSR_vec), kernel.group_id(0));
-    std::cout << "out3" << std::endl;
-    auto boPopcount = xrt::bo(device, sizeof(int), kernel.group_id(1));
-    std::cout << "out4" << std::endl;
+    auto boPopcount = xrt::bo(device, max_output_cycles*sizeof(int), kernel.group_id(1));
+  
 
     // --- 5. 将数据从 Host 拷贝到 Device ---
+   
     boSetA.write(setA_vec.data());
     boSetB.write(setB_vec.data());
 
@@ -156,13 +160,14 @@ int main(int argc, char **argv)
     // --- 7. 将结果从 Device 拷贝回 Host ---
     std::cout << "\n===== 步骤 5: 获取并分析结果 =====" << std::endl;
     std::vector<BCSR_vec> hardware_result_vec(max_output_cycles);
+    std::vector<int> final_popcount_vec(max_output_cycles);
     int final_popcount = 0;
 
     boResult.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     boPopcount.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
 
     boResult.read(hardware_result_vec.data());
-    boPopcount.read(&final_popcount);
+    boPopcount.read(final_popcount_vec.data());
 
     std::cout << "结果已从设备同步回 Host。" << std::endl;
 
@@ -180,10 +185,6 @@ int main(int argc, char **argv)
             if (!e.isPadding())
             {
                 has_valid_data_in_cycle = true;
-                break;
-            }else{
-                std::cout << "周期 " << std::setw(2) << cycle << " 是padding" << std::endl;
-                //has_valid_data_in_cycle = true;
                 break;
             }
         }
@@ -209,11 +210,18 @@ int main(int argc, char **argv)
 
     // --- 9. 最终验证和性能报告 ---
     std::cout << "\n--- 最终结果汇总 ---" << std::endl;
-    std::cout << "Kernel 报告的总 Popcount: " << final_popcount << std::endl;
+
+    int kernel_total_popcount = 0;
+    for(int i = 0; i < max_output_cycles; ++i) {
+    // 可以加一个判断，只累加有效周期的 popcount
+    kernel_total_popcount += final_popcount_vec[i];
+    }
+
+    std::cout << "Kernel 报告的总 Popcount: " << kernel_total_popcount  << std::endl;
     std::cout << "Host 计算的总 Popcount:   " << calculated_popcount << std::endl;
     std::cout << "总计有效的交集元素数量: " << total_valid_elements << std::endl;
 
-    bool pass = (final_popcount == calculated_popcount);
+    bool pass = (kernel_total_popcount  == calculated_popcount);
 
     std::cout << "\n--- 性能报告 ---" << std::endl;
     std::chrono::duration<double> sync_time = sync_end - sync_start;

@@ -45,9 +45,6 @@ void triangle_match(vertex_t *vertex_, vertex_t *edge_, int v_cnt, int e_cnt, Ma
                 if (v3 <= v2) continue;
                 if (results->count < MAX_MATCHES)
                 {
-                    //results->matches[results->count][0] = v1;
-                    //results->matches[results->count][1] = v2;
-                    //results->matches[results->count][2] = v3;
                     results->count++;
                 }
             }

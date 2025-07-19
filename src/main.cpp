@@ -14,14 +14,16 @@ int main()
         {1, 0b10000001},  {3, 0b00100000},  {5, 0b00111000},  {8, 0b11111111},  {12, 0b00000001},
         {13, 0b00010000}, {15, 0b00001001}, {18, 0b01001011}, {22, 0b11000000}, {25, 0b00100100},
         {30, 0b11110000}, {31, 0b00001111}, {39, 0b00001111}};
+        /*
     BCSR_t setB_elems[B_elements] = {
         {2, 0b11000001},  {3, 0b11111111},  {5, 0b00011000},  {8, 0b00001111},  {12, 0b11100001},
         {15, 0b11111111}, {16, 0b00000011}, {17, 0b00111001}, {18, 0b01001010}, {21, 0b10010010},
-        {22, 0b11111111}, {30, 0b11111111}, {32, 0b00000100}};
+        {22, 0b11111111}, {30, 0b11111111}, {32, 0b00000100}};*/
+          BCSR_t setB_elems[A_elements] = {
+        {1, 0b10000001},  {3, 0b00100000},  {5, 0b00111000},  {8, 0b11111111},  {12, 0b00000001},
+        {13, 0b00010000}, {15, 0b00001001}, {18, 0b01001011}, {22, 0b11000000}, {25, 0b00100100},
+        {30, 0b11110000}, {31, 0b00001111}, {39, 0b00001111}};
 
-    /*
-    
-                                      */
     // 计算批次数量
     const int A_batches = (A_elements + PROCESSING_SEGMENT_SIZE - 1) / PROCESSING_SEGMENT_SIZE;
     const int B_batches = (B_elements + PROCESSING_SEGMENT_SIZE - 1) / PROCESSING_SEGMENT_SIZE;
@@ -92,18 +94,28 @@ int main()
     const int max_output_cycles = max_batches * 3; // 保守估计
     std::vector<BCSR_vec> hardware_result(max_output_cycles);
     init_vec(hardware_result);
-    int final_popcount = 0;
+    std::vector<int> final_popcount(max_output_cycles);
+    
     std::cout << "\n=== Executing hardware intersection ===" << std::endl;
 
     set_int_kernel(setA_vec.data(), setB_vec.data(), A_batches, B_batches, hardware_result.data(),
-                   &final_popcount);
+                   final_popcount.data());
 
     std::cout << "\n=== Hardware Results Analysis ===" << std::endl;
-    std::cout << "Final Popcount: " << final_popcount << std::endl;
+
+    
+   
     // 动态确定实际输出的周期数
     int actual_output_cycles = 0;
     int total_valid_elements = 0;
     int cycle_popcount_sum = 0;
+    std::cout << "Hardware reported popcount: [";
+    for (size_t i = 0; i < final_popcount.size(); ++i) {
+        std::cout << final_popcount[i];
+        if (i + 1 < final_popcount.size()) std::cout << ", ";
+    }   
+    std::cout << "]" << std::endl;
+    
     for (int cycle = 0; cycle < max_output_cycles; ++cycle)
     {
         bool has_valid_data = false;
@@ -145,7 +157,7 @@ int main()
     std::cout << "Actual output cycles: " << actual_output_cycles << std::endl;
     std::cout << "Total valid elements: " << total_valid_elements << std::endl;
     std::cout << "Calculated total popcount: " << cycle_popcount_sum << std::endl;
-    std::cout << "Hardware reported popcount: " << final_popcount << std::endl;
+    //std::cout << "Hardware reported popcount: " << final_popcount << std::endl;
     // 验证期望结果
     std::cout << "\n=== Expected Results Verification ===" << std::endl;
     std::cout << "Expected intersection results:" << std::endl;
@@ -155,7 +167,7 @@ int main()
     std::cout << "  idx=15 bitmap=00001001 (A & B: 00001001 & 11111111)" << std::endl;
     std::cout << "  idx=18 bitmap=01001010 (A & B: 01001010 & 01001010)" << std::endl;
     std::cout << "  idx=22 bitmap=11000000 (A & B: 11000000 & 11111111)" << std::endl;
-    std::cout << "  idx=30 bitmap=00000000 (A & B: 11110000 & 00001111)" << std::endl;
-    std::cout << "Expected total popcount: 1+2+4+2+3+2+0 = 14" << std::endl;
+    std::cout << "  idx=30 bitmap=00001111 (A & B: 11110000 & 00001111)" << std::endl;
+    std::cout << "Expected total popcount: 1+2+4+2+3+2+4 = 19" << std::endl;
     return 0;
 }

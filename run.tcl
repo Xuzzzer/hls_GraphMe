@@ -14,8 +14,10 @@ open_solution -reset solution1 -flow_target vitis
 set_part {xcu55c-fsvh2892-2L-e}
 create_clock -period 5 -name default
 
+config_cosim  -trace_level all
+
 # Set variable to select which steps to execute
-set hls_exec 1
+set hls_exec 5
 
 # Run C simulation
 csim_design
@@ -25,14 +27,14 @@ csim_design
 
 if {$hls_exec == 1} {
     # Run Synthesis and Exit
-    csynth_design
+    #csynth_design
   
     
 } elseif {$hls_exec == 2} {
     # Run Synthesis, RTL Simulation and Exit
     csynth_design
     
-    cosim_design
+    cosim_design  
 } elseif {$hls_exec == 3} { 
     # Run Synthesis, RTL Simulation, RTL implementation and Exit
     csynth_design
@@ -41,7 +43,7 @@ if {$hls_exec == 1} {
     export_design -format xo -rtl verilog -output set_int_kernel.xo
 } else {
     # Default is to exit after setup
-    csynth_design
+    #csynth_design
 }
 config_export -version 2.0.1
 #export_design -format ip_catalog -output set_int_kernel_ip 
