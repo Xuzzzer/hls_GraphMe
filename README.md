@@ -1,7 +1,7 @@
 # Graph Processing on FPGA  
 
 > ⚙️ 基于 **Xilinx Vitis HLS** 的GPM
-> 当前目标：在 FPGA 上加速 **`set_intersect`**，并探索 **BCSR** 存储格式与 **Bitonic Merge** 并行流水。
+> 当前目标：在 FPGA 上加速 **`set_intersect`**，主要是在用双调排序来对bcsr格式的数据做集合交集.
 
 ---
 
@@ -12,10 +12,12 @@
 | `src/`     | **HLS** 内核源代码（`gpm_kernel.cpp` 等）           |
 | `include/` | 公共头文件，数据结构与内核接口定义                           |
 | `dataset/` | 测试数据集（矩阵 / 图）                               |
-| `host.cpp` | Host 端应用（**待定制**：上板后用于驱动 xclbin）            |
+| `host.cpp` | Host 端应用，生成exe作为主机端应用            |
 | `run.tcl`  | 一键脚本：启动 **Vitis HLS** 仿真→综合→导出              |
 | `build/`   | **out‑of‑source** 构建输出（已在 `.gitignore` 中排除） |
 | `hls/`     | Vitis HLS 生成的报告 / xclbin / xo 产物（已忽略）       |
+| `Makefile` | 也可以用来执行仿真 ｜
+|`host_file` |是主机端来预处理文件｜
 
 ---
 
@@ -59,6 +61,3 @@ vitis_hls -f run.tcl
 
 
 
----
-
-> 🐭 **Mouse‑dev** will keep pushing! Feel free to open issues or discussions if you have suggestions.

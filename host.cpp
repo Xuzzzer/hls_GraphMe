@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     // --- 3. 准备输入数据 (Host 端) ---
     std::cout << "\n===== 步骤 2: 准备输入数据 =====" << std::endl;
 
-   
+   //数据举例
     BCSR_t setA_elems[] = {BCSR_t(1, 0b10000001),  BCSR_t(3, 0b00100000),  BCSR_t(5, 0b00111000),
                            BCSR_t(8, 0b11111111),  BCSR_t(12, 0b00000001), BCSR_t(13, 0b00010000),
                            BCSR_t(15, 0b00001001), BCSR_t(18, 0b01001011), BCSR_t(23, 0b11000000),
